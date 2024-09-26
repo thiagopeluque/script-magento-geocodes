@@ -46,7 +46,7 @@ const validateLatLong = (data) => {
 };
 
 // SQL Insert
-let sql = 'INSERT INTO inventory_geoname (country_code, postcode, city, region, province, latitude, longitude, source_code, entity_id) VALUES\n';
+let sql = 'INSERT INTO inventory_geoname (country_code, postcode, city, region, province, latitude, longitude, source_code) VALUES\n';
 
 let entityId = 0;
 
@@ -67,8 +67,7 @@ workbook.on('worksheet', (worksheet) => {
       const region = ufToRegion[uf] || uf;
       const province = codMun;
       if (latitude != null && longitude != null) {
-        sql += `('BR', '${formatPostcode(cep)}','${city}','${region}','${province}',${latitude},${longitude},'',${entityId}),\n`;
-        entityId += 3;
+        sql += `('BR', '${formatPostcode(cep)}','${city}','${region}','${province}',${latitude},${longitude},''),\n`;
       }
     }
   });
@@ -84,4 +83,4 @@ workbook.on('worksheet', (worksheet) => {
 });
 
 // Inicia a leitura do arquivo em stream
-workbook.read(fs.createReadStream('basecep_integrada_exemplo.xlsx'));
+workbook.read(fs.createReadStream('basecep_integrada.xlsx'));
