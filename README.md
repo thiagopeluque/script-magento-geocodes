@@ -1,7 +1,7 @@
 ## Magento Geocodes
 
-### Inventory Geonames
-Script para gerar a lista de CEPs para Magento (Tabela: 'inventory_geonames') baseando-se na planilha oferecida pelo site:
+### Inventory Geoname
+Script para gerar a lista de CEPs para Magento (Tabela: 'inventory_geoname') baseando-se na planilha oferecida pelo site:
 https://www.zipdata.com.br/base-de-ceps/
 
 1. Adquirir a planilha ou baixar a planilha de demonstração pelo site (Optar pelo arquivo com extensão .XLSX)
