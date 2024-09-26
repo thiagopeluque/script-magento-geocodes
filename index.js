@@ -46,14 +46,12 @@ const formatPostcode = (cep) => {
   return `${cep.slice(0, 5)}-${cep.slice(5)}`;
 };
 
-// Mudar o formato da Latitude e Longitude para o padrão BR utilizando vírgulas
-const formatLatLong = (data) => {
-    if (data) {
-        if(data.length == 1){
-            return data.replace('-','NULL')
-        }
-        return data.replace('.',',')
-    }
+// Verificar se os dados estão corretos ou são nulos ou vazios
+const validateLatLong = (data) => {
+  if (data && typeof data === 'string' && data.length > 1) {
+    return data;
+  }
+  return null; // Ou você pode retornar undefined se preferir
 };
 
 // Mapeando os dados para gerar o JSON e assim gerar o SQL correto
@@ -63,19 +61,23 @@ const processedData = data.map((row, index) => {
     city: row.Cidade_Acento || row.Cidade_Oficial,
     region: ufToRegion[row.UF] || row.UF,
     province: row.Cod_Mun,
-    latitude: formatLatLong(row.latitude),
-    longitude: formatLatLong(row.longitude),
+    latitude: validateLatLong(row.latitude),
+    longitude: validateLatLong(row.longitude),
     source_code: '',
-    entity_id: index++
+    entity_id: index * 3
   };
 });
 
 // SQL Insert
 let sql = 'INSERT INTO inventory_geoname (country_code, postcode, city, region, province, latitude, longitude, source_code, entity_id) VALUES\n';
-
 sql += processedData.map(row => {
-  return `('BR', '${row.postcode}', '${row.city}', '${row.region}', '${row.province}', ${row.latitude || 'NULL'}, ${row.longitude || 'NULL'}, '${row.source_code}', ${row.entity_id})`;
-}).join(',\n');
+    if (row.latitude != null && row.longitude != null) {
+      return `('BR','${row.postcode}','${row.city}','${row.region}','${row.province}',${row.latitude},${row.longitude},'${row.source_code}',${row.entity_id})`;
+    }
+    return null; // Retorna null se não atender à condição
+  })
+  .filter(row => row !== null) // Filtra as linhas nulas
+  .join(',\n');
 
 sql += ';';
 
