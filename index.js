@@ -1,16 +1,7 @@
-const xlsx = require('xlsx');
+const ExcelJS = require('exceljs');
 const fs = require('fs');
 
-// Arquivo em Excel com nome de 'basecep_integrada.xlsx'. Caso mude, alterar na variável abaixo
-// Arquivo deve estar na mesma pasta do projeto.
-const workbook = xlsx.readFile('basecep_integrada_exemplo.xlsx');
-const sheetName = workbook.SheetNames[0];
-const sheet = workbook.Sheets[sheetName];
-
-// Converte para a tabela para JSON
-const data = xlsx.utils.sheet_to_json(sheet);
-
-// Mapeando as siglas com o  estados
+// Mapeando as siglas com os estados
 const ufToRegion = {
   'SP': 'São Paulo',
   'MG': 'Minas Gerais',
@@ -51,37 +42,46 @@ const validateLatLong = (data) => {
   if (data && typeof data === 'string' && data.length > 1) {
     return data;
   }
-  return null; // Ou você pode retornar undefined se preferir
+  return null;
 };
-
-// Mapeando os dados para gerar o JSON e assim gerar o SQL correto
-const processedData = data.map((row, index) => {
-  return {
-    postcode: formatPostcode(row.CEP.toString()),
-    city: row.Cidade_Acento || row.Cidade_Oficial,
-    region: ufToRegion[row.UF] || row.UF,
-    province: row.Cod_Mun,
-    latitude: validateLatLong(row.latitude),
-    longitude: validateLatLong(row.longitude),
-    source_code: '',
-    entity_id: index * 3
-  };
-});
 
 // SQL Insert
 let sql = 'INSERT INTO inventory_geoname (country_code, postcode, city, region, province, latitude, longitude, source_code, entity_id) VALUES\n';
-sql += processedData.map(row => {
-    if (row.latitude != null && row.longitude != null) {
-      return `('BR','${row.postcode}','${row.city}','${row.region}','${row.province}',${row.latitude},${row.longitude},'${row.source_code}',${row.entity_id})`;
+
+let entityId = 0;
+
+// Cria uma instância do workbook e abre o arquivo em modo de leitura de stream
+const workbook = new ExcelJS.stream.xlsx.WorkbookReader();
+
+workbook.on('worksheet', (worksheet) => {
+  worksheet.on('row', (row) => {
+    if (row.number > 1) { // Ignora a primeira linha (cabeçalhos)
+      const cep = row.getCell(1).value.toString();
+      const cidadeAcento = row.getCell(11).value;
+      const cidadeOficial = row.getCell(10).value;
+      const uf = row.getCell(3).value;
+      const codMun = row.getCell(12).value;
+      const latitude = validateLatLong(row.getCell(19).value);
+      const longitude = validateLatLong(row.getCell(20).value);
+      const city = cidadeAcento || cidadeOficial;
+      const region = ufToRegion[uf] || uf;
+      const province = codMun;
+      if (latitude != null && longitude != null) {
+        sql += `('BR', '${formatPostcode(cep)}','${city}','${region}','${province}',${latitude},${longitude},'',${entityId}),\n`;
+        entityId += 3;
+      }
     }
-    return null; // Retorna null se não atender à condição
-  })
-  .filter(row => row !== null) // Filtra as linhas nulas
-  .join(',\n');
+  });
 
-sql += ';';
+  worksheet.on('finished', () => {
+    // Remove a última vírgula e adiciona o ponto e vírgula final
+    sql = sql.slice(0, -2) + ';\n';
 
-// Escreve o arquivo SQL e grava no disco
-fs.writeFileSync('ceps.sql', sql);
+    // Escreve o arquivo SQL
+    fs.writeFileSync('ceps.sql', sql);
+    console.log('Arquivo SQL gerado com Sucesso!');
+  });
+});
 
-console.log('Arquivo SQL gerado com Sucesso!');
+// Inicia a leitura do arquivo em stream
+workbook.read(fs.createReadStream('basecep_integrada_exemplo.xlsx'));

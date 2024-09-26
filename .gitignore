@@ -128,3 +128,11 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+
+# Ignore Excel Files
+*.xlsx
+*.xls
+
+# Ignore SQL Files
+*.sql
